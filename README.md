@@ -5,7 +5,7 @@
 
 <img src="https://www.r-project.org/logo/Rlogo.png" alt="R Logo" width="100" height="100">
 
-This project aims to analyze student performance data using various statistical methods and visualizations to identify key factors influencing their performance. The project is implemented using the R programming language.
+This project aims to analyse students' performance data using various statistical methods and visualisations to identify key factors influencing their performance. The project is implemented using the R programming language.
 
 ## Table of Contents
 - [Data Preparation and Cleaning](#data-preparation-and-cleaning)
