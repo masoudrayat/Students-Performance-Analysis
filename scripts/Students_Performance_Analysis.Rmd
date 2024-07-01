@@ -1,0 +1,399 @@
+---
+title: "Statistical Inference Analysis on Student Performance"
+author: "MASOUD RAYAT ZADEH"
+date: ' Jan 17th 2024'
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+# do not change these options
+knitr::opts_chunk$set(echo = TRUE) # do not edit this line.
+knitr::opts_chunk$set(error = TRUE,comment=NA) # do not edit this line.
+```
+
+# Instructions to students
+
+Save this template as your studentID.Rmd; you will upload this file as part of your submission. Change the author information on line 3 of this file to your **student ID**. Do not change the authorship to your name.
+
+Your should knit this file to a document **Word** format. The Word document is what will be marked!
+
+Any changes that you make to the data (e.g. variable name changes) should be made entirely within R.
+
+The subsubsections labelled **Answer:** indicate where you should put in your written Answers. The template also provides blank code chunks for you to complete your Answers; you may choose to add additional chunks if required.
+
+This is an individual assessment: do not work with any other person during this exam. Text-matching software will be used on all submissions. 
+
+# Instructions for submission 
+
+You must submit your assignment before the stated deadline by electronic submission through Blackboard.
+
+- It is a good idea to save your work early and frequently to ensure you have no issues with the submission portal. Multiple submissions can be made to the portal, but only the final one will be accepted.
+
+- It is your responsibility to submit the exam in a format stipulated above. Your marks may be affected if your tutor cannot open or properly view your submission.
+
+- Do not leave submission to the very last minute. Always allow time in case of technical issues.
+
+- The date and time of your submission is taken from the Blackboard server and is recorded when your submission is complete, not when you click Submit.
+
+- It is essential that you check that you have submitted the correct file(s), and that each complete file was received. Submission receipts are accessed from the Coursework tab.
+
+There is no late submission permitted on this timed assessment. Ensure that you submit your submission in good time. Neither the module leader nor module team can accept late assessments, do not ask them to do so.
+
+
+# Background to the research
+
+The head of school for a four year degree course has provided you with some data based on student demographics, marks and graduate outcomes. 
+
+They have asked you if the data could reveal findings that may be relevant for monitoring student performance and outcomes.
+
+
+# Data instructions
+
+Your individual data set is accessed via Blackboard >>> Assessments >>> Dewis Data For Exam.
+
+You must only analyse the specified data. No other data is to be used for this assessment.
+
+All data manipulation and analyses must be done within R.
+
+# Data structure
+
+The variables collected for each student are:
+
+studentID – a unique student identifier issued to each student at the start of the course
+
+outcome – employment status one year after finishing the course (E1 = employed in a graduate role, E2 =Employed in a non-graduate role, Education = in full time further education, Unemployed = not yet employed)
+
+age – age at start of course
+
+gender – gender at start of course
+
+language – score given for student level of English proficiency determined as part of the application process for the course (minimum 0, maximum 10)
+
+feedback – score given by student for their satisfaction of the course when asked at the end of Year 4 (minimum 0, maximum 10)
+
+Mark1 - Mark for Year 1 (out of 100)
+
+Mark2 - Mark for Year 2 (out of 100)
+
+Mark3 - Mark for Year 3 (out of 100)
+
+Mark4 – Mark for Year 4 (out of 100)
+
+```{r libraries, include=FALSE}
+# load any required libraries / additional files here
+library(MASS)
+library(gapminder)
+library(scales)
+library(assertr)
+library(RSQLite)
+library(corrplot)
+library(performance)
+library(tableone)
+library(psych)
+library(flextable)
+library(readr)
+library(dplyr)
+library(ggplot2)
+library(boot)
+
+```
+
+# QUESTIONS START HERE
+
+# Question 1: Data Preparation 
+
+a) Ensure you have prepared your knitted Word document as per Instructions to Students
+
+b) You should load the data in R, describe and perform any actions with respect to:
+
+-any manipulation of the data structure
+
+-missing values
+
+-ensuring data is valid
+
+**(10 marks)**
+
+### Answer:
+
+I loaded the data from the specified path into a dataframe named contents using the read.csv function. To get an initial overview of the dataset, I displayed the first few rows using the head function. This step ensured the correct loading of the data and enabled a preliminary examination of its structure and contents.
+
+I began the data cleaning process by conducting an initial exploration of the entire dataset through summarization. After reviewing the summary and dataset structure, I decided on specific data cleansing approaches to prepare the data for analysis.
+
+For handling missing values in the “language” and “feedback” columns, I chose to impute them with the mean value of each respective column. This approach was favoured over other methods, such as removing rows with missing values, primarily because a significant number of rows contained NA values, and I aimed to utilise the available data values on these rows. Additionally, both “language” and “feedback” are continuous variables, making mean imputation a suitable choice.
+
+The “age” variable did not have a specified acceptable range, so I assumed that individuals of all ages could participate in this course and set an upper limit of 100. Upon filtering the data, I found only one observation that exceeded this range. In such cases, removing the outlier is a practical solution since the proportion of missing values is small and distributed randomly.
+
+To ensure the dataset’s cleanliness and readiness for analysis, I employed the “assert” and “verify” functions. This systematic data cleaning approach aimed to enhance the dataset’s quality and reliability, setting a solid foundation for subsequent analyses.
+```{r data}
+# load the dataset here
+student_performance <- read.csv("D:/Students-Performance-Analysis/data/contents.csv")
+
+```
+
+```{r Q1 }
+# further data preparation here
+
+# Exploring the data
+summary(student_performance)
+str(student_performance)
+
+# Count missing values in the "language" and "feedback" columns
+missing_values_lang <- sum(is.na(student_performance$language))
+missing_values_feed <- sum(is.na(student_performance$feedback))
+cat("Number of missing values in 'language' column:", missing_values_lang, "
+")
+cat("Number of missing values in 'feedback' column:", missing_values_feed, "
+")
+
+# Checking non-numeric columns
+table(student_performance$gender)
+table(student_performance$outcome)
+
+# Check for duplicates in the studentID column
+duplicate_count <- sum(duplicated(student_performance$studentID))
+cat("Number of duplicates in 'studentID' column:", duplicate_count, "
+")
+
+# Replace NA values with mean of the column
+student_performance$feedback[is.na(student_performance$feedback)] <- round(mean(student_performance$feedback, na.rm = TRUE), 0)
+student_performance$language[is.na(student_performance$language)] <- round(mean(student_performance$language, na.rm = TRUE), 0)
+
+# Remove out-of-range ages
+student_dataset <- subset(student_performance, age < 100)
+rm(student_performance)
+
+# Final data check
+student_dataset %>%
+  verify(has_all_names("studentID", "gender", "age", "outcome", "language", "feedback", "Year1", "Year2", "Year3", "Year4")) %>%
+  assert(not_na, studentID, gender, age, outcome, language, feedback, Year1, Year2, Year3, Year4) %>%
+  verify(age >= 10) %>%
+  verify(age <= 100) %>%
+  assert(in_set("Male", "Female"), gender) %>%
+  assert(in_set("E1", "E2", "Unemployed", "Education"), outcome) %>%
+  assert(within_bounds(10000, 99999), studentID) %>%
+  assert(within_bounds(0, 10), language) %>%
+  assert(within_bounds(0, 10), feedback) %>%
+  assert(within_bounds(0, 100), Year1) %>%
+  assert(within_bounds(0, 100), Year2) %>%
+  assert(within_bounds(0, 100), Year3) %>%
+  assert(within_bounds(0, 100), Year4)
+
+cat("All checks passed successfully\n")
+
+```
+
+
+# Question 2 
+
+A colleague suggests the following research question,
+
+ “do students perform differently in their final year relative to their performance at the start?”
+
+To assess this research question:
+
+- create a new variable for the difference between Year 4 mark and Year 1 Mark.
+
+- show and interpret a confidence interval for the mean difference, in context of the research question.
+
+**(12 marks)**
+
+### Answer: 
+The results show that, on average, students' performance in their final year is approximately 16.54 points higher than their performance at the start. The confidence interval provides additional information, suggesting that we can be reasonably confident that the true mean difference in performance between Year 4 and Year 1 lies between 16.25 and 16.84 points. This means that, based on the data, we can say with a certain level of confidence that the performance improvement in Year 4 relative to Year 1 is statistically significant and likely falls within this range. This suggests that there is evidence to conclude that students’ performance has improved over the years, as the confidence interval does not include zero.
+
+In the context of the research question, these results indicate that there is a noticeable increase in students' performance from the beginning to the final year of their study, and this increase is statistically supported by the confidence interval.
+
+```{r Q2}
+# Calculate the difference between Year 4 and Year 1
+student_dataset$Year1vs4_difference <- student_dataset$Year4 - student_dataset$Year1
+
+# Calculate the mean difference
+mean_difference <- mean(student_dataset$Year1vs4_difference)
+
+# Calculate the confidence interval
+confidence_interval <- t.test(student_dataset$Year1vs4_difference)$conf.int
+
+# Print the results
+cat("Mean Difference:", round(mean_difference, 2), "\n")
+cat("Confidence Interval:", round(confidence_interval[1], 2), "to", round(confidence_interval[2], 2), "\n")
+
+```
+
+# Question 3
+
+Another research question is suggested, 
+
+“is there a relationship between student marks across each of the years?”
+
+- Assess this research question by showing and interpreting the linear correlations between the marks for each of the four years.
+
+Marks are awarded for well-designed output, and the interpretation of the output.
+
+**(12 marks)**
+
+### Answer:
+The correlation coefficients suggest that there are varying degrees of positive linear relationships between marks in different years. The relationships are moderate in some cases (Year 1 & Year 2, Year 1 & Year 3, Year 2 & Year 3) since the correlation coefficients are between 0.4 and 0.6, and weak or almost non-existent in others (Year 1 & Year 4, Year 2 & Year 4, Year 3 & Year 4) since the correlation coefficients are less than 0.4. Based on these results, we observed weaker correlations for Year 4 marks with all other years. Therefore, Year 4 appears to be less influenced by the academic performance of previous years compared to how Year 1, Year 2, and Year 3 are influenced. One possible interpretation is that students’ marks in Year 4 are influenced by some external factors, such as their motivation based on their plan for the future or their attention to the job market, which causes them to focus less on lessons. In summary, the weaker correlations between Year 4 marks and those of previous years suggest that Year 4 performance is influenced by a unique set of factors or requirements, which may not be strongly tied to the linear progression of academic performance seen in earlier years. It highlights the distinct nature of Year 4 in the academic journey of students.
+
+```{r Q3}
+# Calculate the correlation matrix
+cor_matrix <- cor(student_dataset[, c("Year1", "Year2", "Year3", "Year4")])
+
+# Create a correlation plot to show correlation values
+library(corrplot)
+corrplot(cor_matrix, method="number")
+
+
+```
+
+# Question 4
+
+A further research question states, 
+
+“can the final year mark be predicted based on one mark for a previous year?”
+
+Produce simple linear regression with Year 4 mark as the dependent variable, and only one independent variable.
+
+Your answer should include:
+
+- justification for the choice of explanatory variable, including any additional supporting exploratory data analyses used to make the choice;
+
+- interpretation of the slope (gradient) coefficient;
+
+- comment on the r-square value, and the validity of model assumptions.
+
+
+**(23 marks)**
+
+### Answer:
+I chose Year 3 as the independent variable for predicting Year 4 marks because it not only had a relatively higher correlation with Year 4 marks (based on results for Question 3) but also provided a favourable goodness of fit. The AIC comparison confirmed that Year 2 also had a strong prediction capability, but Year 3 remains relevant due to its contextual importance and moderate correlation.
+
+The estimated slope coefficient (approximately 0.3362) means that for every one-point increase in a student’s Year 3 marks, we can expect an increase of approximately 0.3362 points in their Year 4 marks, assuming a linear relationship between the two variables.
+
+The R-squared value, which measures the proportion of variability in Year 4 marks explained by Year 3 marks, is approximately 0.1247 (or 12.47%). This suggests that only a small fraction of the variation in Year 4 marks can be explained by Year 3 marks alone. In other words, Year 3 marks are not a strong predictor of Year 4 marks, as indicated by the relatively low R-squared value.
+
+The p-value is 3.203e-08 (much less than 0.05), indicating a statistically significant relationship between Year 3 marks and Year 4 marks. This means it’s unlikely that this relationship is due to random chance alone.
+
+In summary, while there is a statistically significant relationship between Year 3 marks and Year 4 marks, the strength of this relationship is relatively weak (as indicated by the low R-squared value). Therefore, predicting a student’s Year 4 marks solely based on their Year 3 marks may not be very accurate or reliable. Other factors not included in this model may also influence Year 4 performance.
+
+
+```{r Q4}
+# Simple linear regression with Year 4 as the dependent variable
+model_simple1 <- lm(Year4 ~ Year1, data = student_dataset)
+model_simple2 <- lm(Year4 ~ Year2, data = student_dataset)
+model_simple3 <- lm(Year4 ~ Year3, data = student_dataset)
+
+# Compare models by AIC method
+extractAIC(model_simple1)
+extractAIC(model_simple2)
+extractAIC(model_simple3)
+
+# Based on correlation coefficients and AIC, I chose Year 3 as the explanatory variable
+summary(model_simple3)
+
+# Print the slope coefficient and R-squared value
+slope <- coef(model_simple3)["Year3"]
+cat("The slope (gradient) coefficient is:", round(slope, 4), "\n")
+r_squared <- summary(model_simple3)$r.squared
+cat("The R-squared value is:", round(r_squared, 4), "\n")
+
+```
+
+# Question 5:  Report
+
+
+Clearly state one **alternative new** research question based on the full original data set supplied to you. Explain why this is a worthwhile research question to consider.
+
+You are required to write a short report for the client showing some analyses based only on the research question you have selected. 
+
+In your report you may wish to include a number of the following: exploratory data analyses; a hypothesis test; data modelling; discussion of limitations; how you could extend the research if given more time.
+
+To clarify, your answer to this question must be a report based on **your analyses of your own research question** arising from the data, which is not addressed in the questions above. This report should contain a maximum 5 outputs (i.e. graphics + tables) and a maximum of 500 words.
+
+
+**(35 marks)**
+
+### Answer:
+This research study aims to explore the factors that influence student performance, a matter of great significance for educational institutions and stakeholders. Specifically, I investigate the impact of students’ language proficiency, measured by the “language” variable, on their academic performance, represented by the “mark” variable. To facilitate this analysis, a new variable, “Mark,” was created by averaging the values from four “Year” columns. Understanding the influence of language skills on academic outcomes is vital, as language proficiency is fundamental for effective communication and comprehension. Additionally, I examine the relationship between students’ performance and their educational outcomes.
+
+The hypothesis testing results indicated a statistically significant positive correlation between language proficiency and academic performance. The simple linear regression model further supported this finding, with a slope coefficient of 0.3023 and a small p-value, suggesting that, on average, a one-unit increase in “language” is associated with a 0.3023 unit increase in estimated “Mark.” However, it’s essential to note that the model’s R-squared value suggests that “language” explains only approximately 4.33% of the variance in "Mark." This implies that other unaccounted factors may also influence students’ performance.
+
+For a deeper analysis, a multiple linear regression model was constructed, with both “language” and “age” as independent variables. While the R-squared value saw a slight increase, the p-value for the “age” variable (0.02151) indicated significance but contributed modestly. The stepAIC model confirmed the importance of "language" by showing significant changes in AIC values upon its removal. Thus, “language” plays a crucial role in the model and should be retained as a significant predictor.
+
+Visualisations, such as scatter plots, supported the findings by demonstrating that students with stronger language skills tend to perform better academically, as their average marks are higher. Histograms provide a visual representation of the distribution of “language” and “mark” variables, helping us understand their concentration. Additionally, box plots revealed that students with higher marks and superior academic performance are more likely to be employed in graduate roles, highlighting the potential career benefits associated with higher academic achievement. This finding underscores the significance of academic performance in shaping students’ future prospects. Therefore, it is essential to continue investigating the factors that enhance academic performance.
+
+While this report covers essential analyses, further exploratory data analyses could uncover additional insights. It is essential to recognise the study’s limitations. For instance, there may be unmeasured variables that impact student performance that were not considered in this analysis. Additionally, the study’s scope is limited to the available variables, and other unrecorded factors may contribute to variations in student performance. Moreover, it is important to note that linear regression assumes certain conditions like normality and homoscedasticity, which should be considered when interpreting the results.
+
+
+```{r Q5}
+# Research question: "Does language proficiency impact academic performance and consequently future outcomes in students?"
+
+# Creating a new variable "Mark" by calculating the average of the four "Year" variables.
+student_dataset$Mark <- rowMeans(student_dataset[, c("Year1", "Year2", "Year3", "Year4")])
+
+# Exploring distribution of language proficiency and Mark
+hist(student_dataset$language, main = "Histogram of Language Proficiency", xlab = "Language Proficiency", col = "blue")
+hist(student_dataset$Mark, main = "Histogram of Student Marks", xlab = "Student Marks", col = "green")
+
+# Visualize the relationship between language proficiency and academic performance by scatter plot
+plot(student_dataset$language, student_dataset$Mark, xlab = "Language Proficiency", ylab = "Academic Mark", main = "Relationship Between Language Proficiency and Academic Performance")
+
+# Hypothesis Test
+corr_lang_mark <- cor(student_dataset$language, student_dataset$Mark)
+cat("Correlation between language and Mark:", corr_lang_mark, "\n")
+
+p_value <- cor.test(student_dataset$language, student_dataset$Mark)$p.value
+if (p_value < 0.05) {
+  cat("The p-value is", p_value, "which is less than 0.05. Therefore, we reject the null hypothesis.")
+  cat("There is a statistically significant positive correlation between language proficiency and academic performance.")
+} else {
+  cat("The p-value is", p_value, "which is greater than 0.05. Therefore, we fail to reject the null hypothesis.")
+  cat("There is no statistically significant correlation between language proficiency and academic performance.")
+}
+
+# Linear Regression Model
+model_simple <- lm(Mark ~ language, data = student_dataset)
+summary(model_simple)
+
+# Considering other factor (age) in the model
+model_multiple <- lm(Mark ~ language + age, data = student_dataset)
+summary(model_multiple)
+
+model_final <- stepAIC(model_multiple)
+
+# Exploring the relationship between the academic performance and outcome after graduation by boxplot
+library(ggplot2)
+ggplot(student_dataset, aes(x = Mark, y = outcome, fill = outcome)) + 
+  geom_boxplot() + 
+  labs(x = "Mark", y = "Outcome") + 
+  scale_fill_manual(values = c("E1" = "red", "E2" = "blue", "Unemployed" = "green", "Education" = "purple")) + 
+  theme_minimal()
+
+```
+
+# Question 6
+
+Describe how you have applied principles of reproducible research in this submission (maximum 100 words).
+
+Marks are awarded for identification of appropriate reproducible research principles, only if also evidenced throughout your submission that they have been applied.
+
+ 
+**(8 marks)**
+
+### Answer:
+Several principles of reproducible research have been applied to ensure that it can be easily reproduced and verified by others:
+
+Extensive comments and explanations have been provided. This helps others understand the code’s logic and purpose. Variables have been named descriptively, making it clear what each variable represents. Data cleaning and manipulation steps are clearly explained, ensuring that the finer dataset is well-defined and reproducible.
+
+Results and interpretations have been presented in a clear and organised report format. Visualisation is used to present the results graphically, making it easier for others to interpret the findings. The report includes clear conclusions and interpretations based on the analysis.
+
+
+# End matter - Session Information
+
+Do not edit this part. Make sure that you compile your document so that the information about your session (including software / package versions) is included in your submission.
+
+```{r}
+sessionInfo()
+```
