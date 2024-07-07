@@ -6,7 +6,7 @@
 
 <img src="https://www.r-project.org/logo/Rlogo.png" alt="R Logo" width="100" height="100">
 
-This project aims to analyse students' performance data using various statistical methods and visualisations to identify key factors influencing their performance. The project is implemented using the R programming language.
+This academic aims to analyse students' performance data using various statistical methods and visualisations to identify key factors influencing their performance. The project is implemented using the R programming language.
 
 ## Table of Contents
 - [Data Preparation and Cleaning](#data-preparation-and-cleaning)
@@ -54,4 +54,3 @@ The project is organized into the following directories and files:
 
 Knit the `Student_Performance_Analysis.Rmd` file in RStudio to generate the report. This will execute all code chunks and produce results and visualizations.
 
-This setup ensures a structured approach to analyzing student performance, allowing for reproducibility and ease of understanding for future reference.
